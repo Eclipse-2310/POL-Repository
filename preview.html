@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusGuard — Student Wellbeing Early-Warning Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
+              400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+              800: '#3730a3', 900: '#312e81',
+            }
+          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <!-- Standalone React 18 & Babel via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #eef2f7; color: #1e293b; }
+    .shadow-card {
+      box-shadow: 0 12px 30px rgba(71, 85, 105, 0.08), 0 2px 8px rgba(71, 85, 105, 0.05);
+    }
+    .soft-card {
+      background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1px solid #dbe3ee;
+      box-shadow: 0 12px 30px rgba(71, 85, 105, 0.08);
+    }
+    button, a, select, input, textarea { transition: all .2s ease; }
+    button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid rgba(99,102,241,.22);
+      outline-offset: 2px;
+    }
+  @keyframes popupIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const translations = {
+      en: {
+        appName: "CampusGuard",
+        tagline: "Don't wait for students to struggle in silence.",
+        heroSubtitle: "An opt-in, privacy-first AI wellbeing early-warning system helping institutions detect academic overload and isolation before they escalate.",
+        startCheckin: "Start Daily Check-in",
+        viewDashboard: "View Wellness Dashboard",
+        navOverview: "Overview",
+        navCheckin: "Daily Check-in",
+        navWellbeing: "My Wellbeing",
+        navSupport: "Support Chat",
+        navResources: "Resources",
+        navPrivacy: "Privacy Center",
+        navAdmin: "Admin Command",
+        navCommunityGraph: "Community Graph"
+      },
+      hi: {
+        appName: "कैंपसगार्ड (CampusGuard)",
+        tagline: "छात्रों के संघर्ष में मौन रहने की प्रतीक्षा न करें।",
+        heroSubtitle: "एक गोपनीयता-केंद्रित, स्वैच्छिक AI-संचालित कल्याण प्रणाली जो अत्यधिक तनाव और अकेलेपन के शुरुआती संकेत पहचानती है।",
+        startCheckin: "दैनिक चेक-इन शुरू करें",
+        viewDashboard: "वेलनेस डैशबोर्ड देखें",
+        navOverview: "अवलोकन",
+        navCheckin: "दैनिक चेक-इन",
+        navWellbeing: "मेरा स्वास्थ्य",
+        navSupport: "सपोर्ट चैट",
+        navResources: "संसाधन",
+        navPrivacy: "गोपनीयता केंद्र",
+        navAdmin: "एडमिन कमांड",
+        navCommunityGraph: "समुदाय ग्राफ"
+      },
+      mr: {
+        appName: "कॅम्पसगार्ड (CampusGuard)",
+        tagline: "विद्यार्थ्यांच्या संघर्षात मौन राहण्याची वाट पाहू नका.",
+        heroSubtitle: "एक गोपनीयता-प्रथम, ऐच्छिक AI प्रणाली जी शैक्षणिक ताण आणि एकटेपणा संकट होण्यापूर्वी ओळखण्यास मदत करते.",
+        startCheckin: "दैनिक चेक-इन सुरू करा",
+        viewDashboard: "वेलनेस डॅशबोर्ड पहा",
+        navOverview: "विहंगावलोकन",
+        navCheckin: "दैनिक चेक-इन",
+        navWellbeing: "माझे आरोग्य",
+        navSupport: "सपोर्ट चॅट",
+        navResources: "संसाधने",
+        navPrivacy: "गोपनीयता केंद्र",
+        navAdmin: "प्रशासक केंद्र",
+        navCommunityGraph: "समुदाय आलेख"
+      }
+    };
+
+    const INITIAL_ALERTS = [
+      { id: 1, student_id: 'CG-1042', risk_score: 88, risk_level: 'High', top_factors: ['Severe sleep drop (<4.5h)', 'Extreme workload (11h)', 'Frequent isolation'], trend: 'declining', status: 'pending' },
+      { id: 2, student_id: 'CG-8810', risk_score: 79, risk_level: 'High', top_factors: ['Low mood', 'Frequent isolation', 'Attendance dip (62%)'], trend: 'declining', status: 'pending' },
+      { id: 3, student_id: 'CG-2381', risk_score: 54, risk_level: 'Medium', top_factors: ['Sleep deficit (5.5h)', 'Midterm pressure'], trend: 'stable', status: 'pending' },
+      { id: 4, student_id: 'CG-3015', risk_score: 48, risk_level: 'Medium', top_factors: ['Workload spike', 'Mild fatigue'], trend: 'improving', status: 'reviewed' },
+      { id: 5, student_id: 'CG-5520', risk_score: 22, risk_level: 'Low', top_factors: ['Balanced routine', 'Regular sleep'], trend: 'stable', status: 'reviewed' }
+    ];
+
+    function App() {
+      const [tab, setTab] = useState('landing');
+      const [lang, setLang] = useState('en');
+      const [offline, setOffline] = useState(false);
+      const [alerts, setAlerts] = useState(INITIAL_ALERTS);
+      const [selectedAlert, setSelectedAlert] = useState(null);
+      const [popup, setPopup] = useState(null);
+
+      const t = translations[lang];
+
+      return (
+        <div className="min-h-screen flex flex-col bg-[#eef2f7]">
+          {/* Demo Banner */}
+          <div className="bg-slate-900 text-slate-200 text-xs py-2 px-4 border-b border-slate-800">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30 text-[10px]">
+                  Demo Mode Active
+                </span>
+                <span className="text-slate-300 text-xs">All displayed student data is synthetic demo data.</span>
+              </div>
+              <span className="hidden sm:inline text-slate-400 text-xs">
+                Safety Net Architecture • Non-Diagnostic Heuristic
+              </span>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <header className="sticky top-0 z-40 bg-[#f4f7fb]/95 backdrop-blur-md border-b border-slate-300/70 shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => setTab('landing')}>
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black text-lg shadow-sm">
+                  🛡️
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 tracking-tight text-base">CampusGuard</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
+                      Early-Warning
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">Opt-In Student Wellbeing</p>
+                </div>
+              </div>
+
+              <nav className="hidden md:flex items-center gap-1 text-xs font-semibold">
+                {[
+                  { id: 'landing', label: t.navOverview },
+                  { id: 'checkin', label: t.navCheckin },
+                  { id: 'wellbeing', label: t.navWellbeing },
+                  { id: 'admin', label: t.navAdmin, highlight: true },
+                  { id: 'socialGraph', label: t.navCommunityGraph },
+                  { id: 'support', label: t.navSupport },
+                  { id: 'resources', label: t.navResources },
+                  { id: 'privacy', label: t.navPrivacy },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setTab(item.id)}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      tab === item.id
+                        ? 'bg-slate-100 text-slate-900 shadow-sm'
+                        : item.highlight
+                        ? 'text-brand-600 font-bold hover:bg-brand-50'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => {
+                     setOffline(!offline);
+                     setPopup({
+                       title: !offline ? 'Offline Mode Enabled' : 'Online Mode Restored',
+                       text: !offline ? 'Check-ins can be saved locally and synchronized when the connection returns.' : 'CampusGuard is back online and can synchronize queued check-ins.',
+                       action: 'Close'
+                     });
+                   }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ${
+                    offline ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}
+                >
+                  <span>{offline ? '⚠️ Offline Mode' : '🟢 Online'}</span>
+                </button>
+
+                <select
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value)}
+                  className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none cursor-pointer text-slate-700"
+                >
+                  <option value="en">EN (English)</option>
+                  <option value="hi">HI (हिन्दी)</option>
+                  <option value="mr">MR (मराठी)</option>
+                </select>
+              </div>
+            </div>
+          </header>
+
+          {/* Content Views */}
+          <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
+            {tab === 'landing' && <LandingView t={t} onNavigate={setTab} onPopup={setPopup} />}
+            {tab === 'checkin' && <CheckinView t={t} onNavigate={setTab} offline={offline} onPopup={setPopup} />}
+            {tab === 'wellbeing' && <WellbeingView t={t} onNavigate={setTab} onPopup={setPopup} />}
+            {tab === 'admin' && <AdminView t={t} alerts={alerts} onSelectAlert={setSelectedAlert} onNavigate={setTab} onPopup={setPopup} />}
+            {tab === 'socialGraph' && <SocialGraphView t={t} onNavigate={setTab} onPopup={setPopup} />}
+            {tab === 'support' && <SupportChatView onPopup={setPopup} />}
+            {tab === 'resources' && <ResourcesView onPopup={setPopup} />}
+            {tab === 'privacy' && <PrivacyView onPopup={setPopup} />}
+          </main>
+
+          {/* Global Pop-up Modal */}
+          {popup && (
+            <div
+              className="fixed inset-0 z-[60] bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setPopup(null)}
+            >
+              <div
+                className="w-full max-w-lg rounded-3xl bg-[#f7f9fc] border border-slate-200 shadow-2xl p-6 sm:p-7 relative animate-[popupIn_.2s_ease-out]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setPopup(null)}
+                  className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 font-bold transition"
+                  aria-label="Close"
+                >✕</button>
+                <div className="pr-10">
+                  <span className="inline-flex px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 text-[10px] font-bold uppercase tracking-wide">
+                    CampusGuard
+                  </span>
+                  <h2 className="text-xl font-black text-slate-900 mt-3">{popup.title}</h2>
+                  <p className="text-sm text-slate-600 leading-relaxed mt-2">{popup.text}</p>
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => {
+                      if (popup.navigate) {
+                        setTab(popup.navigate);
+                      }
+                      setPopup(null);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm transition"
+                  >
+                    {popup.action || 'Got it'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Alert Side Panel */}
+          {selectedAlert && (
+            <AlertDrawer
+              alert={selectedAlert}
+              onClose={() => setSelectedAlert(null)}
+              onUpdateStatus={(id, newStatus) => {
+                setAlerts(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+                setSelectedAlert(null);
+              }}
+            />
+          )}
+
+          {/* Footer */}
+          <footer className="border-t border-slate-300/70 bg-[#e7edf5] py-6 px-4 text-xs text-slate-500 mt-auto">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div>
+                <span className="font-bold text-slate-800">CampusGuard</span> — <em>"{t.tagline}"</em>
+              </div>
+              <div className="flex gap-4">
+                <button onClick={() => setPopup({title: 'Privacy Architecture', text: 'CampusGuard is opt-in, uses de-identified IDs, collects minimal indicators and keeps humans in the loop before supportive intervention.', action: 'Open Privacy Center', navigate: 'privacy'})} className="hover:text-slate-900">Privacy Architecture</button>
+                <span>•</span>
+                <button onClick={() => setPopup({title: 'Emergency Helplines', text: 'Open the resources section to view the campus support options and national helplines included in this demo.', action: 'Open Resources', navigate: 'resources'})} className="hover:text-slate-900">Emergency Helplines</button>
+                <span>•</span>
+                <span className="text-slate-400">Standalone Single-File Edition</span>
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    function LandingView({ t, onNavigate, onPopup }) {
+      return (
+        <div className="space-y-16 py-8 relative">
+          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[620px] h-[260px] bg-indigo-100/45 blur-3xl rounded-full pointer-events-none"></div>
+          <div className="max-w-4xl mx-auto text-center space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-xs font-semibold">
+              <span>✨ Opt-In Early-Warning Architecture</span>
+              <span>•</span>
+              <span className="font-normal">Zero Stigma</span>
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
+              Early signals. <br/>
+              <span className="bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                Earlier support.
+              </span>
+            </h1>
+            <p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+              {t.tagline} {t.heroSubtitle}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+              <button onClick={() => onNavigate('checkin')} className="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md transition-all">
+                {t.startCheckin} &rarr;
+              </button>
+              <button onClick={() => onNavigate('admin')} className="px-6 py-3 rounded-xl bg-[#edf2f7] hover:bg-[#e5ebf3] text-slate-800 font-bold text-sm border border-slate-300 shadow-sm transition-all">
+                {t.viewDashboard}
+              </button>
+            </div>
+          </div>
+
+          <div className="max-w-4xl mx-auto p-6 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-rose-400"></span>
+                <span className="w-3 h-3 rounded-full bg-amber-400"></span>
+                <span className="w-3 h-3 rounded-full bg-emerald-400"></span>
+                <span className="text-xs font-bold text-slate-600 ml-2">Campus Wellness Command Center Live Preview</span>
+              </div>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                Heuristic Engine Active
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="p-4 rounded-2xl bg-[#edf2f7] border border-slate-200/80 shadow-sm">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Active Students</p>
+                <p className="text-2xl font-black text-slate-900 mt-1">1,248</p>
+                <p className="text-[10px] text-emerald-600 font-bold mt-0.5">94% opt-in</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-[#edf2f7] border border-slate-200/80 shadow-sm">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Check-ins Today</p>
+                <p className="text-2xl font-black text-slate-900 mt-1">842</p>
+                <p className="text-[10px] text-slate-500 font-bold mt-0.5">67.5% volume</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
+                <p className="text-[10px] font-bold text-amber-800 uppercase">Needing Attention</p>
+                <p className="text-2xl font-black text-amber-900 mt-1">73</p>
+                <p className="text-[10px] text-amber-700 font-bold mt-0.5">Mild stress</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200">
+                <p className="text-[10px] font-bold text-rose-800 uppercase">High Priority</p>
+                <p className="text-2xl font-black text-rose-900 mt-1">18</p>
+                <p className="text-[10px] text-rose-700 font-bold mt-0.5">Review required</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function CheckinView({ t, onNavigate, offline, onPopup }) {
+      const [step, setStep] = useState(1);
+      const [mood, setMood] = useState(3);
+      const [sleep, setSleep] = useState(6.0);
+      const [study, setStudy] = useState(7.5);
+      const [isolation, setIsolation] = useState('Sometimes isolated');
+      const [attendance, setAttendance] = useState(80);
+      const [result, setResult] = useState(null);
+
+      const evaluateRisk = () => {
+        let score = 0;
+        let factors = [];
+        if (sleep < 5.0) { score += 32; factors.push('Severe sleep deficit (< 5.0 hrs)'); }
+        else if (sleep < 6.5) { score += 18; factors.push('Mild sleep deficit (< 6.5 hrs)'); }
+        if (study >= 10.0) { score += 26; factors.push('High study workload (10+ hrs)'); }
+        if (mood === 1) { score += 28; factors.push('Very low mood'); }
+        else if (mood === 2) { score += 18; factors.push('Low mood'); }
+        if (isolation === 'Often isolated') { score += 22; factors.push('Frequent social isolation'); }
+        else if (isolation === 'Sometimes isolated') { score += 10; factors.push('Occasional isolation'); }
+        if (attendance < 75) { score += 15; factors.push('Attendance below 75%'); }
+
+        score = Math.min(100, Math.max(0, score));
+        let level = score >= 68 ? 'High' : (score >= 35 ? 'Medium' : 'Low');
+        let status = score >= 68 ? 'Support Recommended' : (score >= 35 ? 'Needs Attention' : 'Stable');
+        let rec = score >= 68
+          ? 'Your recent pattern indicates noticeable stress and sleep deficit. Consider taking a rest pause or reaching out to a counselor.'
+          : (score >= 35 ? 'You are carrying noticeable workload. Pacing assignments and getting extra sleep will help reset energy.' : 'Your wellbeing metrics reflect a healthy and sustainable balance. Keep it up!');
+
+        setResult({ score, level, status, factors, rec });
+      };
+
+      if (result) {
+        return (
+          <div className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-xl my-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Wellbeing Status</p>
+                <h2 className="text-2xl font-black text-slate-900 mt-1">{result.status}</h2>
+              </div>
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black ${
+                result.level === 'High' ? 'bg-rose-100 text-rose-800' : (result.level === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800')
+              }`}>
+                {result.score}<span className="text-[10px] font-normal">/100</span>
+              </div>
+            </div>
+
+            {offline && (
+              <div className="my-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                ⚠️ Saved locally in Offline Queue. Will sync when online.
+              </div>
+            )}
+
+            <div className="mt-6 space-y-2">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contributing Factors</p>
+              <div className="flex flex-wrap gap-1.5">
+                {result.factors.map((f, i) => (
+                  <span key={i} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 rounded-2xl bg-brand-50 border border-brand-100 text-xs sm:text-sm text-slate-700 leading-relaxed">
+              <strong className="text-brand-800 block mb-1">Supportive Guidance:</strong>
+              {result.rec}
+            </div>
+
+            <div className="mt-8 flex items-center justify-between pt-4 border-t border-slate-100">
+              <button onClick={() => { setResult(null); setStep(1); }} className="text-xs font-bold text-slate-500 hover:text-slate-800">
+                ← Take Another Check-in
+              </button>
+              <button onClick={() => onNavigate('wellbeing')} className="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs">
+                View Trends &rarr;
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-card my-6">
+          <div className="mb-6">
+            <div className="flex justify-between text-xs font-bold text-slate-400 mb-2">
+              <span>Step {step} of 5</span>
+              <span>{Math.round((step/5)*100)}%</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-1.5">
+              <div className="bg-brand-600 h-1.5 rounded-full transition-all" style={{ width: `${(step/5)*100}%` }}></div>
+            </div>
+          </div>
+
+          {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-slate-900">How are you feeling today?</h2>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { v: 1, e: '😔', l: 'Very Low' },
+                  { v: 2, e: '🙁', l: 'Low' },
+                  { v: 3, e: '😐', l: 'Okay' },
+                  { v: 4, e: '🙂', l: 'Good' },
+                  { v: 5, e: '😊', l: 'Great' }
+                ].map(item => (
+                  <button
+                    key={item.v}
+                    onClick={() => setMood(item.v)}
+                    className={`p-3 rounded-2xl border text-center transition-all ${
+                      mood === item.v ? 'border-brand-600 bg-brand-50 ring-2 ring-brand-500' : 'border-slate-200 bg-[#f7f9fc] hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-3xl block mb-1">{item.e}</span>
+                    <span className="text-[10px] font-bold text-slate-700 block">{item.l}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4 text-center">
+              <h2 className="text-lg font-bold text-slate-900">How many hours did you sleep last night?</h2>
+              <div className="text-5xl font-black text-slate-900 my-4">{sleep} <span className="text-sm text-slate-400 font-normal">hours</span></div>
+              <input type="range" min="0" max="14" step="0.5" value={sleep} onChange={e => setSleep(parseFloat(e.target.value))} className="w-full accent-brand-600" />
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4 text-center">
+              <h2 className="text-lg font-bold text-slate-900">How intense was your study or workload?</h2>
+              <div className="text-5xl font-black text-slate-900 my-4">{study} <span className="text-sm text-slate-400 font-normal">hours</span></div>
+              <input type="range" min="0" max="16" step="0.5" value={study} onChange={e => setStudy(parseFloat(e.target.value))} className="w-full accent-brand-600" />
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-3">
+              <h2 className="text-lg font-bold text-slate-900">How connected have you felt to people around you?</h2>
+              {['Connected', 'Sometimes isolated', 'Often isolated'].map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => setIsolation(opt)}
+                  className={`w-full p-4 rounded-2xl border text-left font-bold text-sm transition-all ${
+                    isolation === opt ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-500' : 'border-slate-200 bg-[#f7f9fc] hover:bg-slate-50'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {step === 5 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-slate-900">Class Attendance & Thoughts</h2>
+              <div>
+                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
+                  <span>Estimated Attendance</span>
+                  <span>{attendance}%</span>
+                </div>
+                <input type="range" min="0" max="100" step="5" value={attendance} onChange={e => setAttendance(parseInt(e.target.value))} className="w-full accent-brand-600" />
+              </div>
+              <textarea placeholder="Optional: Write anything on your mind today..." className="w-full text-xs p-3 rounded-xl bg-[#f4f7fb] border border-slate-300 outline-none focus:ring-2 focus:ring-brand-500" rows="3"></textarea>
+              <div className="p-3 rounded-xl bg-slate-50 text-[11px] text-slate-500">
+                🛡️ <strong>Voluntary:</strong> Your answers are used only to provide gentle wellbeing support.
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 flex justify-between pt-4 border-t border-slate-100">
+            {step > 1 ? (
+              <button onClick={() => setStep(step - 1)} className="text-xs font-bold text-slate-600 hover:text-slate-900">
+                ← Back
+              </button>
+            ) : <div></div>}
+
+            {step < 5 ? (
+              <button onClick={() => setStep(step + 1)} className="px-5 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs">
+                Continue &rarr;
+              </button>
+            ) : (
+              <button onClick={evaluateRisk} className="px-6 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">
+                Submit Check-in ✓
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function WellbeingView({ t, onNavigate, onPopup }) {
+      const history = [
+        { day: 'Mon', mood: 4, sleep: 7.5, study: 6.0 },
+        { day: 'Tue', mood: 3, sleep: 6.5, study: 7.0 },
+        { day: 'Wed', mood: 3, sleep: 5.5, study: 8.5 },
+        { day: 'Thu', mood: 2, sleep: 4.5, study: 10.0 },
+        { day: 'Fri', mood: 3, sleep: 6.0, study: 8.0 },
+        { day: 'Sat', mood: 4, sleep: 8.0, study: 5.0 },
+        { day: 'Sun', mood: 4, sleep: 7.2, study: 6.5 }
+      ];
+
+      return (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center pb-4 border-b border-slate-200">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900">Today's Wellbeing Snapshot</h1>
+              <p className="text-xs text-slate-500">Anonymous Student ID: <strong>CG-1042</strong></p>
+            </div>
+            <button onClick={() => onNavigate('checkin')} className="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs">
+              + Daily Check-in
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="p-4 rounded-2xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Mood</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">😊 Good</p>
+              <p className="text-[10px] text-slate-400">Rating: 4/5</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Sleep</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">7.2 <span className="text-xs font-normal">hrs</span></p>
+              <p className="text-[10px] text-emerald-600 font-bold">Optimal range</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Study Workload</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">6.5 <span className="text-xs font-normal">hrs</span></p>
+              <p className="text-[10px] text-slate-400">Academic time</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Attendance</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">86%</p>
+              <p className="text-[10px] text-emerald-600 font-bold">Above 75% goal</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-[#f7f9fc] border border-slate-300/80 shadow-card col-span-2 sm:col-span-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Social Connection</p>
+              <p className="text-lg font-black text-slate-900 mt-1">Connected</p>
+              <p className="text-[10px] text-slate-400">Peer signals</p>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+            <h2 className="text-sm font-bold text-slate-900 mb-1">7-Day Trajectory (Sleep & Workload)</h2>
+            <p className="text-xs text-slate-400 mb-6">Visualizing changes helps identify fatigue before burnout sets in.</p>
+            <div className="h-48 w-full">
+              <svg viewBox="0 0 700 180" className="w-full h-full">
+                <line x1="40" y1="150" x2="680" y2="150" stroke="#f1f5f9" strokeWidth="2" />
+                <line x1="40" y1="80" x2="680" y2="80" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 4" />
+                {history.map((h, i) => {
+                  const x = 70 + i * 95;
+                  const sleepY = 150 - h.sleep * 10;
+                  const studyY = 150 - h.study * 8;
+                  return (
+                    <g key={i}>
+                      <text x={x} y="170" textAnchor="middle" fontSize="11" fill="#94a3b8" fontWeight="bold">{h.day}</text>
+                      <rect x={x - 12} y={sleepY} width="10" height={150 - sleepY} fill="#6366f1" rx="4" />
+                      <rect x={x + 2} y={studyY} width="10" height={150 - studyY} fill="#a855f7" rx="4" />
+                    </g>
+                  );
+                })}
+              </svg>
+              <div className="flex justify-center gap-6 text-xs mt-2 font-bold">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-indigo-500"></span> Sleep Duration (hrs)</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500"></span> Study Workload (hrs)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function AdminView({ t, alerts, onSelectAlert, onNavigate, onPopup }) {
+      return (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center pb-4 border-b border-slate-200">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900">{t.commandCenter}</h1>
+              <p className="text-xs text-slate-500">Institution Wellness Command Center • De-identified IDs</p>
+            </div>
+            <button onClick={() => onNavigate('socialGraph')} className="px-4 py-2 rounded-xl bg-[#e8edf4] border border-slate-300 text-slate-800 font-bold text-xs shadow-sm hover:bg-slate-50">
+              Community Connection Graph &rarr;
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-4 rounded-2xl bg-[#f7f9fc] border border-brand-200 shadow-card">
+              <p className="text-[10px] font-bold text-brand-700 uppercase">Active Students</p>
+              <p className="text-3xl font-black text-slate-900 mt-1">1,248</p>
+              <p className="text-[10px] text-emerald-600 font-bold mt-0.5">94% opt-in</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+              <p className="text-[10px] font-bold text-slate-500 uppercase">Check-ins Today</p>
+              <p className="text-3xl font-black text-slate-900 mt-1">842</p>
+              <p className="text-[10px] text-slate-400 font-bold mt-0.5">67.5% volume</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-card">
+              <p className="text-[10px] font-bold text-amber-800 uppercase">Needing Attention</p>
+              <p className="text-3xl font-black text-amber-900 mt-1">73</p>
+              <p className="text-[10px] text-amber-700 font-bold mt-0.5">Moderate stress</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 shadow-card">
+              <p className="text-[10px] font-bold text-rose-800 uppercase">High Priority Alerts</p>
+              <p className="text-3xl font-black text-rose-900 mt-1">18</p>
+              <p className="text-[10px] text-rose-700 font-bold mt-0.5">Review required</p>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+            <h2 className="text-base font-bold text-slate-900 mb-4">Early Warning Alerts Table</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold uppercase">
+                    <th className="p-3">Student ID</th>
+                    <th className="p-3">Risk Level</th>
+                    <th className="p-3">Score</th>
+                    <th className="p-3">Top Factors</th>
+                    <th className="p-3">Trend</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {alerts.map(a => (
+                    <tr key={a.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => onSelectAlert(a)}>
+                      <td className="p-3 font-bold text-slate-900">{a.student_id}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
+                          a.risk_level === 'High' ? 'bg-rose-100 text-rose-800' : (a.risk_level === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800')
+                        }`}>
+                          {a.risk_level}
+                        </span>
+                      </td>
+                      <td className="p-3 font-black text-slate-900">{a.risk_score}</td>
+                      <td className="p-3 max-w-xs truncate">{a.top_factors.join(', ')}</td>
+                      <td className="p-3">
+                        <span className={`font-bold ${a.trend === 'declining' ? 'text-rose-600' : 'text-slate-600'}`}>
+                          {a.trend === 'declining' ? '↘ Declining' : '→ Stable'}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[10px]">
+                          {a.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button className="px-3 py-1 rounded-lg bg-brand-50 text-brand-700 font-bold hover:bg-brand-100">
+                          Review &rarr;
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function AlertDrawer({ alert, onClose, onUpdateStatus }) {
+      return (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
+          <div className="w-full max-w-md bg-[#f3f6fa] h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">{alert.student_id}</h3>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 uppercase">
+                    {alert.risk_level} Priority
+                  </span>
+                </div>
+                <button onClick={onClose} className="text-slate-400 hover:text-slate-800 font-bold text-lg">✕</button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Early-Warning Score</p>
+                  <p className="text-3xl font-black text-slate-900 mt-1">{alert.risk_score}<span className="text-xs font-normal text-slate-400">/100</span></p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Trajectory</p>
+                  <p className="text-xs font-bold text-rose-600 mt-1">Deteriorating</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Contributing Early Indicators</p>
+                <div className="space-y-1.5">
+                  {alert.top_factors.map((f, i) => (
+                    <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700 font-semibold">
+                      • {f}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-brand-50 border border-brand-100 text-xs text-brand-900">
+                <strong className="block mb-1">Suggested Supportive Action:</strong>
+                Consider a gentle peer mentor outreach or recommending confidential campus wellness drop-in.
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-100 text-[11px] text-slate-500">
+                🛡️ <strong>Safety Principle:</strong> Do NOT automatically contact or expose students without consent.
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-slate-100 flex gap-2">
+              <button
+                onClick={() => onUpdateStatus(alert.id, 'counsellor_requested')}
+                className="flex-1 py-2.5 rounded-xl bg-brand-600 text-white font-bold text-xs hover:bg-brand-700"
+              >
+                Request Counsellor
+              </button>
+              <button
+                onClick={() => onUpdateStatus(alert.id, 'reviewed')}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200"
+              >
+                Mark Reviewed
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function SocialGraphView({ t, onNavigate, onPopup }) {
+      const [selectedNode, setSelectedNode] = useState(null);
+
+      const nodes = [
+        { id: 'CG-1001', x: 200, y: 150, deg: 4, iso: 15, status: 'Connected' },
+        { id: 'CG-1002', x: 260, y: 120, deg: 5, iso: 10, status: 'Connected' },
+        { id: 'CG-1003', x: 220, y: 220, deg: 4, iso: 18, status: 'Connected' },
+        { id: 'CG-1004', x: 420, y: 140, deg: 4, iso: 12, status: 'Connected' },
+        { id: 'CG-1005', x: 480, y: 180, deg: 5, iso: 10, status: 'Connected' },
+        { id: 'CG-1006', x: 450, y: 240, deg: 3, iso: 25, status: 'Connected' },
+        { id: 'CG-2381', x: 330, y: 180, deg: 2, iso: 48, status: 'Peripheral' },
+        { id: 'CG-8810', x: 620, y: 120, deg: 1, iso: 78, status: 'At Risk of Isolation' },
+        { id: 'CG-1042', x: 120, y: 320, deg: 0, iso: 95, status: 'Severely Isolated' }
+      ];
+
+      const edges = [
+        ['CG-1001', 'CG-1002'], ['CG-1001', 'CG-1003'], ['CG-1002', 'CG-1003'],
+        ['CG-1004', 'CG-1005'], ['CG-1004', 'CG-1006'], ['CG-1005', 'CG-1006'],
+        ['CG-1002', 'CG-2381'], ['CG-1004', 'CG-2381'], ['CG-1005', 'CG-8810']
+      ];
+
+      return (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center pb-4 border-b border-slate-200">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900">Community Connection Graph</h1>
+              <p className="text-xs text-slate-500">NetworkX-powered voluntary peer connection analysis for isolation detection.</p>
+            </div>
+            <button onClick={() => onNavigate('admin')} className="text-xs font-bold text-slate-500 hover:text-slate-800">
+              ← Back to Admin
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="p-6 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-card lg:col-span-3">
+              <div className="h-96 w-full bg-slate-50 rounded-2xl relative overflow-hidden border border-slate-100">
+                <svg viewBox="0 0 740 380" className="w-full h-full">
+                  {edges.map((e, idx) => {
+                    const u = nodes.find(n => n.id === e[0]);
+                    const v = nodes.find(n => n.id === e[1]);
+                    return (
+                      <line key={idx} x1={u.x} y1={u.y} x2={v.x} y2={v.y} stroke="#cbd5e1" strokeWidth="1.5" />
+                    );
+                  })}
+                  {nodes.map(n => {
+                    const fill = n.iso >= 75 ? '#ef4444' : (n.iso >= 45 ? '#f59e0b' : '#10b981');
+                    const isSel = selectedNode?.id === n.id;
+                    return (
+                      <g key={n.id} className="cursor-pointer" onClick={() => setSelectedNode(n)}>
+                        <circle cx={n.x} cy={n.y} r={isSel ? 14 : 10} fill={fill} stroke="#fff" strokeWidth="2" />
+                        <text x={n.x} y={n.y - 14} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#334155">{n.id}</text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-3">
+                🛡️ Graph insights use voluntary interaction signals and are intended strictly as an early-support indicator. Zero surveillance.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-card flex flex-col justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase mb-4">Node Inspector</h3>
+                {selectedNode ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-2xl font-black text-slate-900">{selectedNode.id}</h4>
+                      <span className={`inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full ${
+                        selectedNode.iso >= 75 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {selectedNode.status}
+                      </span>
+                    </div>
+                    <div className="text-xs space-y-2 pt-2">
+                      <div className="flex justify-between py-1 border-b border-slate-50">
+                        <span className="text-slate-400">Direct Connections:</span>
+                        <span className="font-bold text-slate-900">{selectedNode.deg} peers</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-50">
+                        <span className="text-slate-400">Isolation Index:</span>
+                        <span className="font-bold text-rose-600">{selectedNode.iso} / 100</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 py-12 text-center">Click any node on the graph to view NetworkX metrics.</p>
+                )}
+              </div>
+              <div className="flex justify-center gap-4 text-[11px] text-slate-500 font-bold">
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Connected</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Isolated</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function SupportChatView({ onPopup }) {
+      const [messages, setMessages] = useState([
+        { sender: 'bot', text: "Hello! I am CampusGuard Support. You can talk freely about academic stress, heavy workload, sleep trouble, or feeling isolated. How are you holding up?" }
+      ]);
+      const [input, setInput] = useState('');
+
+      const send = (msg) => {
+        const text = msg || input;
+        if (!text.trim()) return;
+
+        const newMessages = [...messages, { sender: 'user', text }];
+        setMessages(newMessages);
+        setInput('');
+
+        setTimeout(() => {
+          let reply = "Thank you for sharing. Remember that taking short 10-minute pauses and reaching out to one peer can help reset mental fatigue.";
+          let crisis = false;
+
+          const lower = text.toLowerCase();
+          if (lower.includes('suicide') || lower.includes('kill myself') || lower.includes('die')) {
+            reply = "Please know that you are not alone and your life matters deeply. Trained counselors are available 24/7 right now: Please call Tele-MANAS at 14416 (Govt of India Toll-Free) or KIRAN at 1800-599-0019 immediately.";
+            crisis = true;
+          } else if (lower.includes('lonely') || lower.includes('isolated')) {
+            reply = "Feeling disconnected can be very difficult. Consider sending a quick message to one person you trust or dropping by the campus student center today.";
+          } else if (lower.includes('exam') || lower.includes('stress')) {
+            reply = "Academic pressure can feel overwhelming. Let's break it down: Pick just one single task for the next 25 minutes, then take a real break away from screens.";
+          }
+
+          setMessages([...newMessages, { sender: 'bot', text: reply, crisis }]);
+        }, 500);
+      };
+
+      return (
+        <div className="max-w-3xl mx-auto p-6 rounded-3xl bg-[#f7f9fc] border border-slate-300/80 shadow-card h-[540px] flex flex-col justify-between">
+          <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">CampusGuard Support</h2>
+              <p className="text-xs text-slate-400">Empathetic, non-clinical supportive space</p>
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-3 py-4 pr-1">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`p-3.5 rounded-2xl max-w-md text-xs sm:text-sm leading-relaxed ${
+                  m.sender === 'user' ? 'bg-brand-600 text-white rounded-tr-sm' : (m.crisis ? 'bg-rose-50 border border-rose-200 text-rose-950 font-bold rounded-tl-sm' : 'bg-slate-100 text-slate-800 rounded-tl-sm')
+                }`}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <div className="flex gap-1.5 overflow-x-auto pb-2 text-xs">
+              {["I'm stressed about exams.", "I feel lonely.", "I haven't slept well."].map((p, idx) => (
+                <button key={idx} onClick={() => send(p)} className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap">
+                  {p}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex gap-2 pt-2 border-t border-slate-100">
+              <input
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Share what is currently on your mind..."
+                className="flex-1 p-2.5 text-xs rounded-xl bg-[#f4f7fb] border border-slate-300 outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <button type="submit" className="px-4 py-2.5 rounded-xl bg-brand-600 text-white font-bold text-xs">
+                Send
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    function ResourcesView({ onPopup }) {
+      const items = [
+        { title: 'Tele-MANAS National Mental Health Line', cat: 'Emergency', phone: '14416 / 1800-891-4416', desc: '24x7 toll-free multilingual psychological support provided by the Government of India.' },
+        { title: 'KIRAN Mental Health Rehabilitation', cat: 'Emergency', phone: '1800-599-0019', desc: 'National helpline for 24/7 psychological first-aid and distress management.' },
+        { title: 'Campus Wellbeing & Counseling Cell', cat: 'Counsellor', phone: 'Room 204, Health Wing', desc: 'Confidential 1-on-1 private appointments with certified psychologists.' },
+        { title: 'Academic Skills & Coaching', cat: 'Academic', phone: 'Library 3rd Floor', desc: 'Peer tutors and coaches to help balance coursework and deadlines.' },
+        { title: 'Sleep & Recovery Guide', cat: 'Sleep', phone: 'Self-guided Toolkit', desc: 'Evidence-based micro-practices to reset sleep quality.' }
+      ];
+
+      return (
+        <div className="space-y-6">
+          <div className="pb-4 border-b border-slate-200">
+            <h1 className="text-2xl font-black text-slate-900">Support & Wellness Resources</h1>
+            <p className="text-xs text-slate-500">Confidential campus units and national 24/7 crisis lines.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {items.map((r, i) => (
+              <div key={i} className={`p-5 rounded-3xl border flex flex-col justify-between shadow-card ${
+                r.cat === 'Emergency' ? 'bg-rose-50/50 border-rose-200' : 'bg-[#f7f9fc] border-slate-200'
+              }`}>
+                <div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 uppercase">{r.cat}</span>
+                  <h3 className="text-base font-bold text-slate-900 mt-2">{r.title}</h3>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{r.desc}</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                  <span className="text-slate-800">{r.phone}</span>
+                  {r.cat === 'Emergency' && (
+                    <button onClick={() => onPopup({title: r.title, text: `This resource is available at ${r.phone}. Use your phone's call function to contact the service.`, action: 'Close'})} className="px-3 py-1 rounded-lg bg-rose-600 text-white">Call</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function PrivacyView({ onPopup }) {
+      return (
+        <div className="max-w-4xl mx-auto space-y-8 py-6">
+          <div className="text-center space-y-3">
+            <h1 className="text-3xl font-extrabold text-slate-900">Your wellbeing data belongs to you.</h1>
+            <p className="text-slate-600 text-sm max-w-xl mx-auto">
+              CampusGuard was built on the principle that students will only trust a wellbeing tool if it is fundamentally safe and free from surveillance.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {[
+              { t: '1. 100% Opt-In Participation', d: 'Students choose voluntarily whether to participate and can delete their records anytime.' },
+              { t: '2. Anonymous Student IDs', d: 'All check-ins and graphs use codes like CG-1042. Real names and roll numbers are never linked.' },
+              { t: '3. Strictly Non-Diagnostic', d: 'We identify pattern changes like sleep drops, never clinical medical diagnoses.' },
+              { t: '4. Zero Surveillance', d: 'No keystroke logging, no screen recording, no location tracking, and no private message reading.' },
+              { t: '5. Minimal Data Collection', d: 'Only 5 functional indicators: mood, sleep, study hours, attendance estimate, and peer connection.' },
+              { t: '6. Mandatory Human Oversight', d: 'Automated algorithms never trigger punitive action. Human counselors review alerts before intervention.' }
+            ].map((p, i) => (
+              <div key={i} className="p-5 rounded-2xl bg-[#f7f9fc] border border-slate-300/80 shadow-card">
+                <h3 className="font-bold text-slate-900 text-sm mb-1">{p.t}</h3>
+                <p className="text-slate-600 leading-relaxed">{p.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
